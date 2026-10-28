@@ -1,0 +1,10 @@
+{
+  "name": "Room Unsealed: Glassback",
+  "short_name": "Glassback",
+  "start_url": "/",
+  "display": "fullscreen",
+  "background_color": "#070d12",
+  "theme_color": "#070d12",
+  "description": "A mobile-browser room defense game against an alien parasite brood."
+}
+

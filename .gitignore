@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vite/
+*.log
+*.tar.gz
+mobile-preview.png
+.tmp-*/
+

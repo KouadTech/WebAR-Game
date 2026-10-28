@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#050706" />
+    <meta name="description" content="Mark three breach points in your room, then survive a two-minute alien parasite infestation." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Room Unsealed</title>
+  </head>
+  <body>
+    <main id="app">
+      <video id="camera-feed" autoplay muted playsinline aria-hidden="true"></video>
+      <div id="simulated-room" aria-hidden="true">
+        <div class="sim-room__ceiling"></div>
+        <div class="sim-room__wall sim-room__wall--left"></div>
+        <div class="sim-room__wall sim-room__wall--right"></div>
+        <div class="sim-room__floor"></div>
+        <div class="sim-room__window"><span></span><span></span><span></span></div>
+      </div>
+      <div id="scene" aria-label="Augmented reality game view"></div>
+      <div class="camera-treatment" aria-hidden="true"></div>
+
+      <section id="onboarding" class="panel panel--active" aria-labelledby="game-title">
+        <div class="system-stamp"><i></i> Spatial emergency channel</div>
+        <div class="opening-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div class="title-lockup">
+          <p class="title-lockup__kicker">Indoor breach protocol</p>
+          <h1 id="game-title">Room<br /><em>unsealed</em></h1>
+          <p class="title-lockup__brief">Choose three places where the glassback brood can surface. Hold your ground for two minutes.</p>
+        </div>
+        <div class="protocol-line" aria-label="Game instructions">
+          <span>Aim</span><b></b><span>Mark 3 breaches</span><b></b><span>Survive</span>
+        </div>
+        <button id="deploy-button" class="primary-action" type="button"><span>Open room scanner</span><i aria-hidden="true">↗</i></button>
+        <p class="privacy-note">Camera processing stays on this device. Stand in one safe place while playing.</p>
+        <p class="asset-credit">Specimen: GLASSBACK // origin unknown.</p>
+      </section>
+
+      <section id="permission-panel" class="panel panel--center" aria-live="polite">
+        <div class="aperture" aria-hidden="true"><span></span></div>
+        <p class="eyebrow">Scanner offline</p>
+        <h2>Let the room in.</h2>
+        <p class="permission-copy">Allow the rear camera and motion sensors. Nothing is recorded or uploaded.</p>
+        <button id="camera-button" class="primary-action" type="button"><span>Allow room scan</span><i aria-hidden="true">●</i></button>
+        <button id="simulation-button" class="text-action" type="button">Preview without camera</button>
+      </section>
+
+      <section id="breach-panel" class="breach-panel" aria-live="polite" aria-hidden="true">
+        <div class="scan-sweep" aria-hidden="true"></div>
+        <div class="scan-reticle" aria-hidden="true"><span></span></div>
+        <div class="breach-console">
+          <div class="breach-console__header">
+            <span id="breach-step">Breach 1 of 3</span>
+            <div class="breach-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+          </div>
+          <h2 id="breach-title">Aim at an entrance.</h2>
+          <p id="breach-copy">Choose a doorway, hallway, or dark corner. Keep your feet planted; turn your body and phone.</p>
+          <button id="mark-breach-button" class="scan-action" type="button"><span>Lock this breach</span><b>＋</b></button>
+        </div>
+      </section>
+
+      <div id="countdown" class="countdown" aria-hidden="true"><span id="countdown-value">3</span><small>Room armed</small></div>
+
+      <div id="hud" class="hud" aria-hidden="true">
+        <div class="survival-clock"><span>Hold until</span><strong id="time-value">02:00</strong></div>
+        <div class="score-readout"><span>Neutralized</span><strong id="score-value">000000</strong></div>
+        <div id="left-cue" class="direction-cue direction-cue--left" aria-hidden="true"><b>‹</b><span>Movement<br />left</span></div>
+        <div id="right-cue" class="direction-cue direction-cue--right" aria-hidden="true"><span>Movement<br />right</span><b>›</b></div>
+        <div class="threat-alert" id="threat-alert"><i></i><span id="threat-count">Contact</span></div>
+        <div id="breach-compass" class="breach-compass" aria-hidden="true">
+          <span class="breach-compass__orbit"></span>
+          <i data-breach="0"></i><i data-breach="1"></i><i data-breach="2"></i><b></b>
+        </div>
+        <div id="hit-marker" class="hit-marker" aria-hidden="true"><span></span><span></span></div>
+        <div class="combat-strip">
+          <div class="vitals"><span>Pulse</span><strong id="health-value">100</strong><div class="health-track"><i id="health-bar"></i></div></div>
+          <p id="game-status" class="game-status" role="status">Turn to find movement</p>
+          <div class="ammo"><span>Charge</span><strong><b id="ammo-value">06</b><i>/06</i></strong></div>
+        </div>
+        <button id="fire-button" class="fire-button" type="button" aria-label="Discharge weapon"><span>Discharge</span><i></i></button>
+      </div>
+
+      <section id="result-panel" class="panel result-panel" aria-live="polite">
+        <p class="eyebrow" id="result-eyebrow">Room status</p>
+        <h2 id="result-title">Seal held.</h2>
+        <p id="result-copy">The brood has gone quiet—for now.</p>
+        <div class="result-ledger">
+          <div><span>Score</span><strong id="final-score">000000</strong></div>
+          <div><span>Neutralized</span><strong id="final-kills">0</strong></div>
+          <div><span>Held</span><strong id="final-time">02:00</strong></div>
+        </div>
+        <button id="restart-button" class="primary-action" type="button"><span>Mark new breaches</span><i aria-hidden="true">↻</i></button>
+      </section>
+      <div id="blood-impact" class="blood-impact" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div id="damage-flash" aria-hidden="true"></div>
+      <div id="muzzle-flash" aria-hidden="true"></div>
+    </main>
+    <script type="module" src="/src/game.ts"></script>
+  </body>
+</html>
+
