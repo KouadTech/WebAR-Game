@@ -47,6 +47,15 @@ const rimLight = new THREE.PointLight(0xff5a38, 13, 12, 2); rimLight.position.se
 const raycaster = new THREE.Raycaster();
 const screenCenter = new THREE.Vector2(0, 0);
 const moveVector = new THREE.Vector3();
+const viewVector = new THREE.Vector3();
+const deviceEuler = new THREE.Euler();
+const deviceQuaternion = new THREE.Quaternion();
+const targetCameraQuaternion = new THREE.Quaternion();
+const baselineDeviceQuaternion = new THREE.Quaternion();
+const screenQuaternion = new THREE.Quaternion();
+const verticalAxis = new THREE.Vector3(0, 1, 0);
+const screenAxis = new THREE.Vector3(0, 0, 1);
+const deviceCameraCorrection = new THREE.Quaternion(-Math.sqrt(.5), 0, 0, Math.sqrt(.5));
 let phase: Phase = 'onboarding';
 let enemies: Enemy[] = [];
 const template = createGlassbackParasite();
@@ -55,8 +64,8 @@ let breaches: number[] = [];
 let simulated = false;
 let score = 0, kills = 0, ammo = MAGAZINE_SIZE, health = 100;
 let reloading = false, gameStart = 0, lastFrame = performance.now();
-let heading = 0, targetHeading = 0;
-let orientationActive = false, orientationListening = false, firstOrientation: number | null = null;
+let fallbackHeading = 0, targetFallbackHeading = 0;
+let orientationActive = false, orientationListening = false, orientationBaselineReady = false;
 let dragging = false, dragX = 0, spawnCursor = 0, runToken = 0;
 let audioContext: AudioContext | null = null;
 
@@ -184,10 +193,25 @@ async function requestOrientation() {
     window.addEventListener('deviceorientation', onOrientation, true); orientationListening = true; return true;
   } catch { return false; }
 }
-function onOrientation(event: DeviceOrientationEvent & { webkitCompassHeading?: number }) {
-  const degrees = Number.isFinite(event.webkitCompassHeading) ? event.webkitCompassHeading! : event.alpha;
-  if (degrees === null) return; if (firstOrientation === null) firstOrientation = degrees;
-  const delta = ((degrees - firstOrientation + 540) % 360) - 180; targetHeading = -THREE.MathUtils.degToRad(delta); orientationActive = true;
+function onOrientation(event: DeviceOrientationEvent) {
+  if (event.alpha === null || event.beta === null || event.gamma === null) return;
+  const screenAngle = screen.orientation?.angle ?? (window.orientation as number | undefined) ?? 0;
+  deviceEuler.set(
+    THREE.MathUtils.degToRad(event.beta),
+    THREE.MathUtils.degToRad(event.alpha),
+    -THREE.MathUtils.degToRad(event.gamma),
+    'YXZ',
+  );
+  deviceQuaternion.setFromEuler(deviceEuler);
+  deviceQuaternion.multiply(deviceCameraCorrection);
+  screenQuaternion.setFromAxisAngle(screenAxis, -THREE.MathUtils.degToRad(screenAngle));
+  deviceQuaternion.multiply(screenQuaternion);
+  if (!orientationBaselineReady) {
+    baselineDeviceQuaternion.copy(deviceQuaternion);
+    orientationBaselineReady = true;
+  }
+  targetCameraQuaternion.copy(baselineDeviceQuaternion).invert().multiply(deviceQuaternion).normalize();
+  orientationActive = true;
 }
 async function enableCamera() {
   ui.cameraButton.disabled = true; ui.cameraButton.querySelector('span')!.textContent = 'Requesting access…';
@@ -218,13 +242,16 @@ function refreshScan(message?: string) {
   }
 }
 function startScan(useSimulation: boolean) {
-  runToken++; clearEnemies(); breaches = []; simulated = useSimulation; firstOrientation = null;
-  heading = 0; targetHeading = 0; spawnCursor = 0; setPanel(null); setPhase('scanning'); refreshScan(); tone(170, .1, 'triangle', .025, 80);
+  runToken++; clearEnemies(); breaches = []; simulated = useSimulation;
+  orientationActive = false; orientationBaselineReady = false; targetCameraQuaternion.identity(); camera.quaternion.identity();
+  fallbackHeading = 0; targetFallbackHeading = 0; spawnCursor = 0; setPanel(null); setPhase('scanning'); refreshScan(); tone(170, .1, 'triangle', .025, 80);
 }
 function markBreach() {
   if (phase !== 'scanning') return;
   if (breaches.length === 3) { void beginCountdown(); return; }
-  const bearing = normalize(-heading);
+  camera.getWorldDirection(viewVector); viewVector.y = 0;
+  if (viewVector.lengthSq() < .001) { refreshScan('Hold the phone upright, then aim at the opening again.'); return; }
+  viewVector.normalize(); const bearing = normalize(Math.atan2(viewVector.x, -viewVector.z));
   if (breaches.some((saved) => Math.abs(normalize(saved - bearing)) < .52)) {
     refreshScan('Turn farther—give the brood a different way into the room.'); navigator.vibrate?.([20, 35, 20]); tone(95, .12, 'square', .03, -25); return;
   }
@@ -285,13 +312,16 @@ function endGame(survived: boolean) {
 }
 
 function updateDirections() {
+  camera.getWorldDirection(viewVector); viewVector.y = 0;
+  if (viewVector.lengthSq() < .001) viewVector.set(0, 0, -1); else viewVector.normalize();
+  const viewBearing = Math.atan2(viewVector.x, -viewVector.z);
   ui.compassMarks.forEach((marker, index) => {
-    const relative = normalize((breaches[index] ?? 0) + heading);
+    const relative = normalize((breaches[index] ?? 0) - viewBearing);
     marker.style.transform = `translate(-50%, -50%) rotate(${relative}rad) translateY(-46px)`;
   });
   const living = enemies.filter((enemy) => !enemy.dead);
   if (!living.length) { ui.leftCue.classList.remove('direction-cue--active'); ui.rightCue.classList.remove('direction-cue--active'); ui.threatAlert.classList.remove('threat-alert--active'); return; }
-  const angles = living.map((enemy) => normalize(Math.atan2(enemy.root.position.x, -enemy.root.position.z) + heading));
+  const angles = living.map((enemy) => normalize(Math.atan2(enemy.root.position.x, -enemy.root.position.z) - viewBearing));
   const nearest = angles.reduce((best, angle) => Math.abs(angle) < Math.abs(best) ? angle : best), threshold = .46;
   ui.leftCue.classList.toggle('direction-cue--active', nearest < -threshold); ui.rightCue.classList.toggle('direction-cue--active', nearest > threshold);
   const ahead = angles.filter((angle) => Math.abs(angle) <= threshold).length;
@@ -299,7 +329,11 @@ function updateDirections() {
 }
 function animate(now: number) {
   requestAnimationFrame(animate); const delta = Math.min((now - lastFrame) / 1000, .05); lastFrame = now;
-  heading += normalize(targetHeading - heading) * (orientationActive ? .24 : .14); camera.rotation.y = heading;
+  if (orientationActive) camera.quaternion.slerp(targetCameraQuaternion, .24);
+  else {
+    fallbackHeading += normalize(targetFallbackHeading - fallbackHeading) * .14;
+    camera.quaternion.setFromAxisAngle(verticalAxis, fallbackHeading);
+  }
   enemies.forEach((enemy) => animateParasite(enemy, now));
   if (phase === 'running') {
     const elapsed = (now - gameStart) / 1000, remaining = Math.max(0, Math.ceil(ROUND_SECONDS - elapsed));
@@ -338,7 +372,7 @@ renderer.domElement.addEventListener('pointerdown', (event) => {
   if (phase !== 'scanning' && phase !== 'running') return; dragging = true; dragX = event.clientX; renderer.domElement.setPointerCapture(event.pointerId);
 });
 renderer.domElement.addEventListener('pointermove', (event) => {
-  if (!dragging || orientationActive) return; const movement = event.clientX - dragX; dragX = event.clientX; targetHeading -= movement * .006;
+  if (!dragging || orientationActive) return; const movement = event.clientX - dragX; dragX = event.clientX; targetFallbackHeading -= movement * .006;
 });
 renderer.domElement.addEventListener('pointerup', (event) => {
   dragging = false; if (renderer.domElement.hasPointerCapture(event.pointerId)) renderer.domElement.releasePointerCapture(event.pointerId);
@@ -346,7 +380,7 @@ renderer.domElement.addEventListener('pointerup', (event) => {
 window.addEventListener('keydown', (event) => {
   if (event.code === 'Space') { event.preventDefault(); fire(); }
   if (event.key === 'Enter' && phase === 'scanning') markBreach();
-  if (event.key === 'ArrowLeft') targetHeading += .25; if (event.key === 'ArrowRight') targetHeading -= .25;
+  if (event.key === 'ArrowLeft') targetFallbackHeading += .25; if (event.key === 'ArrowRight') targetFallbackHeading -= .25;
 });
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.65));
