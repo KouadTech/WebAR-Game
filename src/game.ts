@@ -11,6 +11,8 @@ interface Enemy {
 
 const ROUND_SECONDS = 120;
 const MAGAZINE_SIZE = 6;
+const RAPID_FIRE_KILLS = 3;
+const RAPID_FIRE_INTERVAL = 115;
 const $ = <T extends HTMLElement>(selector: string): T => {
   const element = document.querySelector<T>(selector);
   if (!element) throw new Error(`Missing element: ${selector}`);
@@ -27,6 +29,7 @@ const ui = {
   ammo: $('#ammo-value'), health: $('#health-value'), healthBar: $('#health-bar'), status: $('#game-status'),
   fire: $('#fire-button') as HTMLButtonElement, restart: $('#restart-button') as HTMLButtonElement,
   leftCue: $('#left-cue'), rightCue: $('#right-cue'), threatAlert: $('#threat-alert'), threatCount: $('#threat-count'),
+  upgradeNotice: $('#upgrade-notice'),
   hitMarker: $('#hit-marker'), bloodImpact: $('#blood-impact'), damageFlash: $('#damage-flash'), muzzleFlash: $('#muzzle-flash'),
   compassMarks: [...document.querySelectorAll<HTMLElement>('[data-breach]')], resultEyebrow: $('#result-eyebrow'),
   resultTitle: $('#result-title'), resultCopy: $('#result-copy'), finalScore: $('#final-score'),
@@ -64,6 +67,7 @@ let breaches: number[] = [];
 let simulated = false;
 let score = 0, kills = 0, ammo = MAGAZINE_SIZE, health = 100;
 let reloading = false, gameStart = 0, lastFrame = performance.now();
+let rapidFireUnlocked = false, fireHeld = false, rapidFireTimer: number | null = null;
 let fallbackHeading = 0, targetFallbackHeading = 0;
 let orientationActive = false, orientationListening = false, orientationBaselineReady = false;
 let dragging = false, dragX = 0, spawnCursor = 0, runToken = 0;
@@ -182,7 +186,11 @@ function tone(frequency: number, duration: number, type: OscillatorType = 'squar
     oscillator.connect(gain).connect(audioContext.destination); oscillator.start(); oscillator.stop(audioContext.currentTime + duration);
   } catch { /* Every sound cue also has a visual equivalent. */ }
 }
-function updateControlHint() { if (phase === 'running' && !reloading) ui.status.textContent = orientationActive ? 'Turn your body • center movement' : 'Drag to turn • center movement'; }
+function updateControlHint() {
+  if (phase !== 'running' || reloading) return;
+  if (rapidFireUnlocked) { ui.status.textContent = 'Rapid fire ready • hold discharge'; return; }
+  ui.status.textContent = orientationActive ? 'Turn your body • center movement' : 'Drag to turn • center movement';
+}
 
 async function requestOrientation() {
   if (orientationListening) return true;
@@ -267,6 +275,7 @@ async function beginCountdown() {
 }
 function startGame() {
   runToken++; clearEnemies(); setPanel(null); setPhase('running'); score = 0; kills = 0; ammo = MAGAZINE_SIZE; health = 100;
+  stopRapidFire(); rapidFireUnlocked = false; ui.upgradeNotice.classList.remove('upgrade-notice--active'); ui.upgradeNotice.setAttribute('aria-hidden', 'true');
   reloading = false; gameStart = performance.now(); spawnCursor = 0; ui.fire.disabled = false; updateHud(); updateControlHint(); spawnReplacement();
   tone(170, .12, 'sawtooth', .035, 100);
 }
@@ -292,8 +301,30 @@ function reload() {
     ui.fire.classList.remove('fire-button--reloading'); updateControlHint(); updateHud(); tone(250, .08, 'triangle', .025, 35);
   }, 920);
 }
+function unlockRapidFire() {
+  if (rapidFireUnlocked) return;
+  rapidFireUnlocked = true; ui.upgradeNotice.setAttribute('aria-hidden', 'false'); pulse(ui.upgradeNotice, 'upgrade-notice--active');
+  ui.status.textContent = 'Rapid fire unlocked • hold discharge'; navigator.vibrate?.([28, 35, 28]);
+  tone(260, .09, 'square', .035, 120); window.setTimeout(() => tone(420, .14, 'triangle', .04, 160), 95);
+  window.setTimeout(() => { ui.upgradeNotice.classList.remove('upgrade-notice--active'); ui.upgradeNotice.setAttribute('aria-hidden', 'true'); }, 2400);
+  if (fireHeld) startRapidFire();
+}
+function startRapidFire() {
+  if (!rapidFireUnlocked || rapidFireTimer !== null) return;
+  const repeat = () => {
+    if (!fireHeld || phase !== 'running' || !rapidFireUnlocked) { rapidFireTimer = null; return; }
+    fire(); rapidFireTimer = window.setTimeout(repeat, RAPID_FIRE_INTERVAL);
+  };
+  rapidFireTimer = window.setTimeout(repeat, RAPID_FIRE_INTERVAL);
+}
+function stopRapidFire() {
+  fireHeld = false;
+  if (rapidFireTimer !== null) window.clearTimeout(rapidFireTimer);
+  rapidFireTimer = null;
+}
 function eliminate(enemy: Enemy) {
   enemy.dead = true; enemy.sequence++; kills++; score += enemy.kind === 'skitter' ? 125 : 100; updateHud();
+  if (kills === RAPID_FIRE_KILLS) unlockRapidFire();
   ui.status.textContent = enemy.kind === 'skitter' ? 'Skitter neutralized' : 'Parasite neutralized'; tone(420, .16, 'triangle', .04, 180);
   const token = runToken; window.setTimeout(() => { if (token !== runToken) return; removeEnemy(enemy); spawnReplacement(280); }, 680);
 }
@@ -366,7 +397,9 @@ function animate(now: number) {
 
 ui.deploy.addEventListener('click', () => { setPhase('permission'); setPanel(ui.permission); tone(180, .08, 'triangle', .03, 80); });
 ui.cameraButton.addEventListener('click', enableCamera); ui.simulationButton.addEventListener('click', startSimulation);
-ui.markBreach.addEventListener('click', markBreach); ui.fire.addEventListener('pointerdown', (event) => { event.preventDefault(); fire(); });
+ui.markBreach.addEventListener('click', markBreach);
+ui.fire.addEventListener('pointerdown', (event) => { event.preventDefault(); fireHeld = true; fire(); startRapidFire(); });
+window.addEventListener('pointerup', stopRapidFire); window.addEventListener('pointercancel', stopRapidFire);
 ui.restart.addEventListener('click', () => startScan(simulated));
 renderer.domElement.addEventListener('pointerdown', (event) => {
   if (phase !== 'scanning' && phase !== 'running') return; dragging = true; dragX = event.clientX; renderer.domElement.setPointerCapture(event.pointerId);

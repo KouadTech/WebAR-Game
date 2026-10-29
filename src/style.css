@@ -290,12 +290,20 @@ h1 em { color: transparent; font-style: normal; -webkit-text-stroke: 1px rgba(21
 .ammo strong { display: block; color: var(--bone); font: 400 15px "SFMono-Regular", Consolas, monospace; }
 .ammo strong b { font-size: 23px; font-weight: 400; }
 .ammo strong i { color: var(--fog); font-size: 8px; font-style: normal; }
-.fire-button { position: absolute; right: auto; bottom: max(14px, env(safe-area-inset-bottom)); left: 50%; display: flex; align-items: center; justify-content: space-between; width: 154px; height: 58px; padding: 0 16px; border: 1px solid rgba(217,222,212,.42); border-radius: 0; color: var(--bone); background: rgba(5,7,6,.72); clip-path: polygon(0 0, 92% 0, 100% 20%, 100% 100%, 8% 100%, 0 80%); transform: translateX(-50%); backdrop-filter: blur(8px); pointer-events: auto; }
+.fire-button { position: absolute; right: auto; bottom: max(14px, env(safe-area-inset-bottom)); left: 50%; display: flex; align-items: center; justify-content: space-between; width: 154px; height: 58px; padding: 0 16px; border: 1px solid rgba(217,222,212,.42); border-radius: 0; color: var(--bone); background: rgba(5,7,6,.72); clip-path: polygon(0 0, 92% 0, 100% 20%, 100% 100%, 8% 100%, 0 80%); transform: translateX(-50%); backdrop-filter: blur(8px); pointer-events: auto; touch-action: none; -webkit-user-select: none; user-select: none; will-change: transform, background-color; }
 .fire-button::before { content: ""; position: absolute; left: 6px; top: 7px; bottom: 7px; width: 2px; background: var(--oxide); }
 .fire-button span { font: 700 10px "SFMono-Regular", Consolas, monospace; letter-spacing: .15em; text-transform: uppercase; }
 .fire-button i { width: 12px; height: 12px; border: 1px solid var(--ochre); border-radius: 50%; }
 .fire-button:active, .fire-button--fired { color: var(--void); background: var(--bone); }
 .fire-button--reloading i { border-style: dashed; animation: scan-rotate .65s linear infinite; }
+
+.upgrade-notice { position: absolute; z-index: 8; top: 27%; left: 50%; display: grid; width: min(84vw, 330px); padding: 14px 17px 15px; border: 1px solid rgba(217,222,212,.5); color: var(--bone); background: rgba(18,7,9,.9); box-shadow: 0 18px 55px rgba(0,0,0,.48); opacity: 0; transform: translate(-50%,-12px) scale(.96); pointer-events: none; }
+.upgrade-notice::before { content: ""; position: absolute; top: -1px; right: 15px; left: 15px; height: 2px; background: var(--oxide); box-shadow: 0 0 16px var(--oxide); }
+.upgrade-notice small, .upgrade-notice span { font: 8px "SFMono-Regular", Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; }
+.upgrade-notice small { margin-bottom: 4px; color: var(--trace); }
+.upgrade-notice strong { font-family: "DIN Condensed", "Arial Narrow", sans-serif; font-size: 28px; line-height: 1; letter-spacing: -.02em; text-transform: uppercase; }
+.upgrade-notice span { margin-top: 7px; color: var(--ochre); }
+.upgrade-notice--active { animation: upgrade-reveal 2.4s cubic-bezier(.18,.82,.2,1) both; }
 
 .blood-impact { position: absolute; z-index: 7; left: 50%; top: 48%; width: 90px; height: 90px; opacity: 0; pointer-events: none; transform: translate(-50%,-50%); }
 .blood-impact i { position: absolute; border-radius: 52% 48% 60% 40%; background: rgba(190,146,207,.82); box-shadow: 0 0 12px rgba(164,112,187,.55); filter: blur(.3px); }
@@ -317,6 +325,7 @@ h1 em { color: transparent; font-style: normal; -webkit-text-stroke: 1px rgba(21
 @keyframes room-sweep { 0% { transform: translateY(0); opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { transform: translateY(650%); opacity: 0; } }
 @keyframes scan-rotate { to { transform: rotate(360deg); } }
 @keyframes blood-burst { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.45) rotate(-8deg); } 18% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.45) rotate(9deg); } }
+@keyframes upgrade-reveal { 0% { opacity: 0; transform: translate(-50%,-18px) scale(.92); } 10%, 78% { opacity: 1; transform: translate(-50%,0) scale(1); } 100% { opacity: 0; transform: translate(-50%,8px) scale(.98); } }
 
 @media (min-width: 760px) {
   .panel { padding-right: 8vw; padding-left: 8vw; }
