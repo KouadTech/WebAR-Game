@@ -3,7 +3,6 @@ import './style.css';
 
 type Phase = 'onboarding' | 'permission' | 'scanning' | 'countdown' | 'running' | 'complete' | 'defeated';
 type Kind = 'crawler' | 'skitter';
-const LEG_COUNT = 6;
 interface Enemy {
   id: number; root: THREE.Group;
   health: number; speed: number; dead: boolean; attacking: boolean;
@@ -85,131 +84,69 @@ function setPhase(next: Phase) {
   ui.countdown.classList.toggle('countdown--active', counting); ui.countdown.setAttribute('aria-hidden', String(!counting));
 }
 
-function organicSphere(seed = 0) {
-  const geometry = new THREE.SphereGeometry(1, 18, 12), position = geometry.getAttribute('position');
-  for (let index = 0; index < position.count; index++) {
-    const x = position.getX(index), y = position.getY(index), z = position.getZ(index);
-    const distortion = 1 + Math.sin(x * 7.1 + seed) * Math.sin(y * 8.7 - seed) * Math.sin(z * 6.3 + seed * .5) * .045;
-    position.setXYZ(index, x * distortion, y * distortion, z * distortion);
-  }
-  geometry.computeVertexNormals(); return geometry;
-}
-
-function tissueTexture(seed: number, light: [number, number, number], dark: [number, number, number]) {
-  const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 96;
-  const context = canvas.getContext('2d')!, image = context.createImageData(96, 96);
-  for (let y = 0; y < 96; y++) for (let x = 0; x < 96; x++) {
-    const index = (y * 96 + x) * 4;
-    const grain = Math.abs(Math.sin(x * 12.9898 + y * 78.233 + seed * 31.7) * 43758.5453) % 1;
-    const vessel = Math.abs(Math.sin(x * .085 + Math.sin(y * .11 + seed) * 2.3 + seed)) < .075;
-    const mix = vessel ? .08 : .55 + grain * .45;
-    image.data[index] = dark[0] + (light[0] - dark[0]) * mix;
-    image.data[index + 1] = dark[1] + (light[1] - dark[1]) * mix;
-    image.data[index + 2] = dark[2] + (light[2] - dark[2]) * mix;
-    image.data[index + 3] = 255;
-  }
-  context.putImageData(image, 0, 0);
-  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(1.6, 1.15); texture.anisotropy = 4; return texture;
-}
-
 function createGlassbackParasite(): THREE.Group {
   const creature = new THREE.Group(); creature.name = 'glassback-parasite';
-  const fleshMap = tissueTexture(2.4, [166,102,91], [48,15,20]), bruiseMap = tissueTexture(8.7, [89,48,51], [20,7,12]);
-  const flesh = new THREE.MeshPhysicalMaterial({ color: 0x8e5b54, map: fleshMap, roughness: .34, metalness: 0, clearcoat: .58, clearcoatRoughness: .23, sheen: .35, sheenColor: new THREE.Color(0x4c171b), sheenRoughness: .7 });
-  const bruisedFlesh = new THREE.MeshPhysicalMaterial({ color: 0x513039, map: bruiseMap, roughness: .42, clearcoat: .46, clearcoatRoughness: .27, sheen: .24, sheenColor: new THREE.Color(0x7a3036) });
-  const organ = new THREE.MeshPhysicalMaterial({ color: 0x9f3438, emissive: 0x3b080b, emissiveIntensity: .65, roughness: .18, clearcoat: .9, clearcoatRoughness: .12, transparent: true, opacity: .88 });
-  const vein = new THREE.MeshStandardMaterial({ color: 0x571015, emissive: 0x230204, emissiveIntensity: .35, roughness: .36 });
-  const eyeMaterial = new THREE.MeshPhysicalMaterial({ color: 0x16080a, emissive: 0x26090b, emissiveIntensity: .16, roughness: .08, clearcoat: 1, clearcoatRoughness: .05 });
-  const tooth = new THREE.MeshStandardMaterial({ color: 0x59433d, roughness: .88 });
+  const shell = new THREE.MeshPhysicalMaterial({ color: 0xb8b8a9, roughness: .58, metalness: .08, clearcoat: .34, clearcoatRoughness: .42 });
+  const joint = new THREE.MeshStandardMaterial({ color: 0x302d34, roughness: .8, metalness: .12 });
+  const membrane = new THREE.MeshPhysicalMaterial({ color: 0x57445e, emissive: 0x21162d, emissiveIntensity: 1.2, roughness: .28, transparent: true, opacity: .82, clearcoat: .7 });
+  const coreMaterial = new THREE.MeshBasicMaterial({ color: 0xd2a6db, transparent: true, opacity: .72 });
+  const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xe8c97a });
+  const tooth = new THREE.MeshStandardMaterial({ color: 0xc9c6b3, roughness: .76 });
 
-  const abdomen = new THREE.Mesh(organicSphere(.7), flesh);
-  abdomen.name = 'abdomen'; abdomen.userData.surface = 'flesh'; abdomen.position.set(.035, .36, -.2); abdomen.rotation.set(-.04, .06, .08); abdomen.scale.set(.5, .29, .69); creature.add(abdomen);
-  const organCore = new THREE.Mesh(organicSphere(2.1), organ);
-  organCore.name = 'pulse-core'; organCore.position.set(.02, .405, -.23); organCore.scale.set(.31, .19, .46); creature.add(organCore);
-  const thorax = new THREE.Mesh(organicSphere(1.3), bruisedFlesh);
-  thorax.name = 'thorax'; thorax.userData.surface = 'bruise'; thorax.position.set(-.025, .31, .27); thorax.rotation.z = -.08; thorax.scale.set(.4, .27, .5); creature.add(thorax);
-  const head = new THREE.Mesh(organicSphere(3.4), flesh);
-  head.name = 'head'; head.userData.surface = 'flesh'; head.position.set(.045, .29, .61); head.rotation.z = .12; head.scale.set(.31, .2, .28); creature.add(head);
+  const abdomen = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 2), membrane);
+  abdomen.name = 'abdomen'; abdomen.position.set(0, .34, -.22); abdomen.scale.set(.48, .27, .64); creature.add(abdomen);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), coreMaterial);
+  core.name = 'pulse-core'; core.position.copy(abdomen.position); core.scale.set(.29, .16, .4); creature.add(core);
+  const thorax = new THREE.Mesh(new THREE.IcosahedronGeometry(.39, 1), shell);
+  thorax.position.set(0, .31, .22); thorax.scale.set(1, .62, 1.08); creature.add(thorax);
+  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(.27, 1), joint);
+  head.position.set(0, .3, .51); head.scale.set(1.12, .7, .92); creature.add(head);
 
-  const veinPaths = [
-    [[-.22,.48,-.55],[-.11,.58,-.34],[-.05,.56,-.03]],
-    [[.27,.39,-.5],[.2,.52,-.29],[.13,.51,.02]],
-    [[-.18,.29,-.61],[-.03,.3,-.72],[.18,.34,-.55]],
-  ];
-  veinPaths.forEach((points, index) => {
-    const curve = new THREE.CatmullRomCurve3(points.map(([x,y,z]) => new THREE.Vector3(x,y,z)));
-    const vessel = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, index === 2 ? .018 : .013, 5, false), vein);
-    vessel.name = `vein-${index}`; creature.add(vessel);
-  });
-  [[-.19,.52,-.29,.13],[.16,.55,-.12,.095],[-.07,.57,-.52,.085]].forEach(([x,y,z,size], index) => {
-    const blister = new THREE.Mesh(organicSphere(5 + index), organ); blister.name = `blister-${index}`;
-    blister.position.set(x,y,z); blister.scale.set(size, size * .48, size * 1.25); creature.add(blister);
-  });
-
-  const legAngles = [-1.12, -.48, .24, Math.PI - .18, Math.PI + .5, Math.PI + 1.14];
-  const legLengths = [1.06, .88, .98, .91, 1.08, .84];
+  const legAngles = [0, Math.PI * .25, Math.PI * .5, Math.PI * .75, Math.PI, Math.PI * 1.25, Math.PI * 1.5, Math.PI * 1.75];
   legAngles.forEach((angle, index) => {
-    const length = legLengths[index];
-    const hip = new THREE.Group(); hip.name = `leg-${index}`; hip.userData.baseAngle = angle; hip.userData.stride = .82 + (index % 3) * .11; hip.position.set(index % 2 ? -.015 : .025, .29, index < 3 ? .05 : -.04); hip.rotation.y = angle;
-    const socket = new THREE.Mesh(organicSphere(7 + index), bruisedFlesh); socket.position.x = .15; socket.scale.set(.15,.1,.12); hip.add(socket);
-    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(.055, .4 * length, 5, 8), flesh);
-    upper.userData.surface = 'flesh'; upper.position.x = .23 * length; upper.scale.z = .82; upper.rotation.z = -Math.PI / 2; hip.add(upper);
-    const knee = new THREE.Mesh(organicSphere(12 + index), bruisedFlesh); knee.position.x = .47 * length; knee.scale.set(.09,.075,.085); hip.add(knee);
-    const shin = new THREE.Group(); shin.name = `shin-${index}`; shin.userData.rest = -.58 + (index % 2) * .09; shin.position.x = .46 * length; shin.rotation.z = shin.userData.rest; hip.add(shin);
-    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(.038, .48 * length, 4, 7), bruisedFlesh);
-    lower.position.set(.27 * length, -.17, 0); lower.rotation.z = -Math.PI / 2 - .52; shin.add(lower);
-    const claw = new THREE.Mesh(new THREE.ConeGeometry(.026, .115, 5), tooth);
-    claw.position.set(.52 * length, -.325, 0); claw.rotation.z = -1.9; shin.add(claw); creature.add(hip);
+    const hip = new THREE.Group(); hip.name = `leg-${index}`; hip.userData.baseAngle = angle; hip.position.y = .28; hip.rotation.y = angle;
+    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(.045, .43, 4, 7), shell);
+    upper.position.x = .245; upper.rotation.z = -Math.PI / 2; hip.add(upper);
+    const knee = new THREE.Mesh(new THREE.IcosahedronGeometry(.075, 1), joint); knee.position.x = .5; hip.add(knee);
+    const shin = new THREE.Group(); shin.name = `shin-${index}`; shin.position.x = .49; shin.rotation.z = -.48; hip.add(shin);
+    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(.035, .54, 4, 7), joint);
+    lower.position.set(.29, -.15, 0); lower.rotation.z = -Math.PI / 2 - .48; shin.add(lower);
+    const claw = new THREE.Mesh(new THREE.ConeGeometry(.045, .18, 5), tooth);
+    claw.position.set(.56, -.31, 0); claw.rotation.z = -1.85; shin.add(claw);
+    creature.add(hip);
   });
 
-  [[-.09,.325,.865,.022],[.025,.345,.88,.028],[.112,.302,.845,.018]].forEach(([x,y,z,size], index) => {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(size, 10, 7), eyeMaterial); eye.name = `eye-${index}`; eye.position.set(x,y,z); creature.add(eye);
-  });
-  const mouth = new THREE.Mesh(new THREE.CircleGeometry(.105, 18), new THREE.MeshBasicMaterial({ color: 0x0d0204 }));
-  mouth.name = 'mouth'; mouth.position.set(.04,.245,.889); mouth.scale.set(1,.42,1); creature.add(mouth);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(.098,.017,6,18), vein);
-  lip.position.copy(mouth.position); lip.position.z += .004; lip.scale.y = .43; creature.add(lip);
-  [-1, 1].forEach((side) => {
-    const mouthHook = new THREE.Mesh(new THREE.ConeGeometry(.015,.072,5), tooth);
-    mouthHook.position.set(.04 + side * .045,.245,.905); mouthHook.rotation.z = side * .62; creature.add(mouthHook);
+  const eyeLayout = [[-.13, .34], [0, .37], [.13, .34], [-.07, .26], [.07, .26]];
+  eyeLayout.forEach(([x, y], index) => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(index === 1 ? .038 : .028, 8, 6), eyeMaterial);
+    eye.position.set(x, y, .735); creature.add(eye);
   });
   [-1, 1].forEach((side) => {
-    const tendril = new THREE.Group(); tendril.name = `tendril-${side}`; tendril.position.set(side * .1, .245, .79);
-    const jaw = new THREE.Mesh(new THREE.CapsuleGeometry(.028, side > 0 ? .23 : .28, 4, 7), bruisedFlesh); jaw.position.z = .14; jaw.rotation.x = Math.PI / 2; jaw.rotation.z = side * .3; tendril.add(jaw);
-    const barb = new THREE.Mesh(new THREE.ConeGeometry(.023, .11, 5), tooth); barb.position.set(side * .035, -.03, .285); barb.rotation.x = Math.PI / 2.3; tendril.add(barb); creature.add(tendril);
+    const mandible = new THREE.Mesh(new THREE.CapsuleGeometry(.025, .21, 3, 6), tooth);
+    mandible.position.set(side * .105, .22, .71); mandible.rotation.set(Math.PI / 2.7, 0, side * -.42); creature.add(mandible);
   });
-  const growth = new THREE.Mesh(organicSphere(9.2), flesh); growth.userData.surface = 'flesh'; growth.position.set(-.34,.41,.12); growth.scale.set(.18,.23,.16); creature.add(growth);
-  const hitbox = new THREE.Mesh(new THREE.BoxGeometry(1.75, .9, 1.7), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-  hitbox.name = 'parasite-hitbox'; hitbox.position.y = .35; creature.add(hitbox);
-  const slime = new THREE.Mesh(new THREE.CircleGeometry(.82, 28), new THREE.MeshBasicMaterial({ color: 0x25090b, transparent: true, opacity: .38, depthWrite: false }));
-  slime.name = 'slime-shadow'; slime.rotation.x = -Math.PI / 2; slime.scale.set(1.15,.72,1); slime.position.y = .009; creature.add(slime);
-  creature.traverse((part) => { if (part instanceof THREE.Mesh) { part.castShadow = part.name !== 'parasite-hitbox' && part.name !== 'slime-shadow'; part.receiveShadow = part.name !== 'parasite-hitbox'; } });
+  const hitbox = new THREE.Mesh(new THREE.BoxGeometry(1.65, .85, 1.65), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+  hitbox.name = 'parasite-hitbox'; hitbox.position.y = .34; creature.add(hitbox);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(.9, 32), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .3, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = .012; creature.add(shadow);
+  creature.traverse((part) => { if (part instanceof THREE.Mesh) { part.castShadow = part.name !== 'parasite-hitbox'; part.receiveShadow = part.name !== 'parasite-hitbox'; } });
   return creature;
 }
 
 function animateParasite(enemy: Enemy, now: number) {
   const tempo = enemy.kind === 'skitter' ? .014 : .0095;
-  const gait = now * tempo + enemy.id * 1.73;
-  for (let index = 0; index < LEG_COUNT; index++) {
+  for (let index = 0; index < 8; index++) {
     const leg = enemy.root.getObjectByName(`leg-${index}`);
     const shin = enemy.root.getObjectByName(`shin-${index}`);
     if (!leg || !shin) continue;
-    const pairedPhase = index < 3 ? index * 2.08 : (index - 3) * 2.08 + Math.PI;
-    const step = Math.sin(gait * leg.userData.stride + pairedPhase), twitch = Math.sin(gait * .37 + index * 4.2) * .035;
-    leg.rotation.y = leg.userData.baseAngle + step * .21 + twitch;
-    leg.rotation.z = Math.max(0, step) * .13 - .035;
-    shin.rotation.z = shin.userData.rest + Math.cos(gait * leg.userData.stride + pairedPhase) * .24;
+    const step = Math.sin(now * tempo + index * 2.17 + enemy.id);
+    leg.rotation.y = leg.userData.baseAngle + step * .16;
+    leg.rotation.z = step * .09;
+    shin.rotation.z = -.48 + Math.cos(now * tempo + index * 2.17 + enemy.id) * .2;
   }
-  const pulseBeat = Math.pow(Math.max(0, Math.sin(now * .0047 + enemy.id)), 3), breath = 1 + pulseBeat * .085;
-  enemy.root.getObjectByName('abdomen')?.scale.set(.5 * breath, .29 / breath, .69 * breath);
-  const core = enemy.root.getObjectByName('pulse-core') as THREE.Mesh | undefined;
-  core?.scale.set(.31 * breath, .19 * breath, .46 * breath);
-  if (core?.material instanceof THREE.MeshPhysicalMaterial) core.material.emissiveIntensity = .48 + pulseBeat * 1.05;
-  [-1, 1].forEach((side) => { const tendril = enemy.root.getObjectByName(`tendril-${side}`); if (tendril) tendril.rotation.y = side * (.18 + Math.sin(now * .007 + enemy.id + side) * .16); });
-  if (!enemy.dead) enemy.root.rotation.z = Math.sin(now * .0031 + enemy.id * 2.4) * .024;
-  const emergence = THREE.MathUtils.smootherstep(Math.min(1, (now - enemy.root.userData.spawnedAt) / 460), 0, 1);
-  enemy.root.scale.setScalar(enemy.root.userData.targetScale * emergence);
+  const breath = 1 + Math.sin(now * .004 + enemy.id) * .055;
+  enemy.root.getObjectByName('abdomen')?.scale.set(.48 * breath, .27 / breath, .64 * breath);
+  enemy.root.getObjectByName('pulse-core')?.scale.set(.29 * breath, .16 * breath, .4 * breath);
 }
 function createEnemy(breach: number) {
   const root = template.clone(true), id = nextEnemyId++;
@@ -217,17 +154,7 @@ function createEnemy(breach: number) {
   const kind: Kind = Math.random() < Math.min(.28 + elapsed / 420, .5) ? 'skitter' : 'crawler';
   const enemy: Enemy = { id, root, health: kind === 'skitter' ? 80 : 100,
     speed: kind === 'skitter' ? .82 : .43, dead: false, attacking: false, breach, sequence: 1, kind };
-  root.userData.spawnedAt = performance.now(); root.userData.targetScale = (kind === 'skitter' ? .68 : .78) * (.93 + Math.random() * .14); root.scale.setScalar(.04);
-  root.traverse((part) => {
-    part.userData.enemyId = id;
-    if (part instanceof THREE.Mesh) {
-      part.castShadow = part.name !== 'parasite-hitbox' && part.name !== 'slime-shadow';
-      if (part.material instanceof THREE.MeshPhysicalMaterial || part.material instanceof THREE.MeshStandardMaterial) {
-        part.material = part.material.clone();
-        if (part.userData.surface === 'flesh') part.material.color.offsetHSL((id % 3 - 1) * .012, (id % 2) * .025, (id % 4 - 1.5) * .018);
-      }
-    }
-  });
+  root.traverse((part) => { part.userData.enemyId = id; if (part instanceof THREE.Mesh) part.castShadow = part.name !== 'parasite-hitbox'; });
   const bearing = breaches[breach] + (Math.random() - .5) * .18, distance = 5.1 + Math.random() * 1.8;
   root.position.set(Math.sin(bearing) * distance, 0, -Math.cos(bearing) * distance);
   root.rotation.y = Math.atan2(-root.position.x, -root.position.z);
